@@ -1,0 +1,77 @@
+// This code is designed to take form inputs and merge them 
+// into a quote template.  This template can be printed off for 
+// specific customers using customizeable quotes regarding specific 
+// inventory records.  The data is processed and extracted, then 
+// put into a copy of the template.
+
+// defines the spreadsheet to target
+const ss = SpreadsheetApp.openById({ENTER_SHEET_ID_FOR_SPREADSHEET})
+
+// retrieve values, data, and customer name for later use
+function retrieveValues() {
+  const values = ss.getSheetByName("Data Sheet").getRange(1, 1, 33, 1).getValues()
+  return values
+}
+
+function retrieveData() {
+  const data = ss.getSheetByName("Data Sheet").getRange(1, 2, 33, 1).getValues()
+  return data
+}
+
+function customerName() {
+  const name = ss.getSheetByName("Data Sheet").getRange(1, 2, 1, 1).getValue()
+  return name
+}
+
+
+//Creates a second copy of the template form and saves in the same folder
+function duplicateTemplate() {
+  const template = DriveApp.getFileById("{ENTER_DOCS_TEMPLATE_FORM}")
+  const name = customerName()
+  const doc = template.makeCopy("*" + name + " - Quote")
+  const newDoc = (doc.getUrl())
+  return newDoc
+}
+
+// replace merge fields with appropriate data
+function replaceText(docUrl, values, data) {
+  const doc = DocumentApp.openByUrl(docUrl)
+  const body = doc.getBody()
+ 
+  for (let i = 0; i < values.length; i++) {
+    body.replaceText("{" + values[i] + "}", data[i])
+  }
+}
+
+//replace image with vehicle image
+function replaceImage(docURL) {
+  const imageURL = ss.getSheetByName("Data Sheet").getRange(34, 2).getValue();
+  if (imageURL === "") {
+    return
+  }
+  const doc = DocumentApp.openByUrl(docURL)
+  const body = doc.getBody();
+  const images = body.getImages();
+
+  // continues only if image exists
+  if (images != 0) {
+    const currImage = images[0]
+    const height = currImage.getHeight();
+    const width = currImage.getWidth();
+    currImage.removeFromParent();
+    const imageCell = body.getTables()[0].getCell(6, 0);
+    const blob = UrlFetchApp.fetch(imageURL).getBlob();
+    imageCell.insertImage(0, blob).setHeight(height).setWidth(width);
+  }
+}
+
+// MAIN FUNCTION
+function createQuote() {
+  const values = retrieveValues()
+  const data = retrieveData()
+  const url =  duplicateTemplate()
+  replaceText(url, values, data)
+  replaceImage(url)
+  SpreadsheetApp.getUi().alert("Quote Built!  Check the Sales Folder in your Google Drive.")
+}
+
